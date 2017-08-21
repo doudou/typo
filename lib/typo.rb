@@ -8,6 +8,7 @@ require "typo/exceptions"
 require 'typo/constraint'
 require 'typo/constant'
 require 'typo/any_type'
+require 'typo/known_class'
 require 'typo/method_analysis'
 
 require 'typo/analyze'

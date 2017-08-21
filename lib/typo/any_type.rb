@@ -11,8 +11,13 @@ module Typo
             true
         end
 
-        # (see Type#compatible_with_value?)
-        def compatible_with_value?(value)
+        # (see Type#describes_value?)
+        def describes_value?(value)
+            true
+        end
+
+        # (see Type#describes_class?)
+        def describes_class?(klass)
             true
         end
     end

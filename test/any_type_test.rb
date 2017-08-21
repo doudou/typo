@@ -15,8 +15,12 @@ module Typo
             assert @any.compatible_with_type?(flexmock)
         end
 
-        it "is compatible with any value" do
-            assert @any.compatible_with_value?(flexmock)
+        it "describes any value" do
+            assert @any.describes_value?(flexmock)
+        end
+
+        it "describes any class" do
+            assert @any.describes_class?(flexmock)
         end
     end
 end

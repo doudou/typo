@@ -8,14 +8,19 @@ module Typo
             @value = value
         end
 
-        # (see Type#compatible_with_value?)
-        def compatible_with_value?(value)
+        # (see Type#describes_value?)
+        def describes_class?(klass)
+            KnownClass.new(value.class).describes_class?(klass)
+        end
+
+        # (see Type#describes_value?)
+        def describes_value?(value)
             @value == value
         end
 
         # (see Type#compatible_with_type?)
         def compatible_with_type?(type)
-            type.compatible_with_value?(@value)
+            type.describes_value?(@value)
         end
 
         # (see Type#narrow)
