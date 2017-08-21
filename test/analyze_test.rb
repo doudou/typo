@@ -154,7 +154,7 @@ module Typo
             end
         end
 
-        describe "local variables" do
+        describe "assignment" do
             before do
                 @context = LocalVariableAssignationTest
             end
