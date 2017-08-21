@@ -11,6 +11,7 @@ require 'typo/any_type'
 require 'typo/known_class'
 require 'typo/method_analysis'
 
+require 'typo/state'
 require 'typo/analyze'
 
 module Typo

@@ -26,6 +26,28 @@ module Typo
         end
     end
 
+    class LocalVariableAssignationTest
+        def simple
+            a = 2
+        end
+        def chained
+            a = b = 2
+        end
+        def re_assigned
+            a = 2
+            a = false
+        end
+        def parallel
+            a, b = 2, 3
+        end
+        def parallel_too_short
+            a, b = 2
+        end
+        def parallel_splat
+            a, b, c = 2, *d
+        end
+    end
+
     describe Analyze do
         before do
             @analyzer = Analyze.new
@@ -129,6 +151,54 @@ module Typo
                     analyzed = @analyzer.analyze_method(@context.instance_method(:rational_literal))
                     assert_equal Constant.new(3/10r), analyzed.return_type
                 end
+            end
+        end
+
+        describe "local variables" do
+            before do
+                @context = LocalVariableAssignationTest
+            end
+
+            it "assigns the local variable type to the value" do
+                analyzed = @analyzer.analyze_method(
+                    @context.instance_method(:simple))
+                assert_equal Constant.new(2), analyzed.local_variable_get(:a, 0)
+            end
+
+            it "handles sequential assignments" do
+                analyzed = @analyzer.analyze_method(
+                    @context.instance_method(:chained))
+                assert_equal Constant.new(2), analyzed.local_variable_get(:a, 0)
+                assert_equal Constant.new(2), analyzed.local_variable_get(:b, 0)
+            end
+
+            it "handles local variables being re-assigned assignments" do
+                analyzed = @analyzer.analyze_method(
+                    @context.instance_method(:re_assigned))
+                assert_equal Constant.new(2), analyzed.local_variable_get(:a, 0)
+                assert_equal Constant.new(false), analyzed.local_variable_get(:a, 1)
+            end
+
+            it "handles straightforward parallel assignment" do
+                analyzed = @analyzer.analyze_method(
+                    @context.instance_method(:parallel))
+                assert_equal Constant.new(2), analyzed.local_variable_get(:a, 0)
+                assert_equal Constant.new(3), analyzed.local_variable_get(:b, 0)
+            end
+
+            it "handles parallel assignment with too little values" do
+                analyzed = @analyzer.analyze_method(
+                    @context.instance_method(:parallel_too_short))
+                assert_equal Constant.new(2), analyzed.local_variable_get(:a, 0)
+                assert_equal Constant.new(nil), analyzed.local_variable_get(:b, 0)
+            end
+
+            it "handles parallel assignment with a splat" do
+                analyzed = @analyzer.analyze_method(
+                    @context.instance_method(:parallel_splat))
+                assert_equal Constant.new(2), analyzed.local_variable_get(:a, 0)
+                assert_kind_of AnyType, analyzed.local_variable_get(:b, 0)
+                assert_kind_of AnyType, analyzed.local_variable_get(:c, 0)
             end
         end
     end
