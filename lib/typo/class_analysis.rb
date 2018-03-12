@@ -25,6 +25,10 @@ module Typo
         def register_instance_method(instance_method)
             @instance_methods[instance_method.name] = instance_method
         end
+
+        def method_info(m)
+            @instance_methods.fetch(m)
+        end
     end
 end
 

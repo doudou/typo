@@ -239,14 +239,41 @@ module Typo
                 assert_would_respond_to :first, ivar
                 assert_would_respond_to :second, ivar
             end
+        end
 
-            it "recognizes the link between attr_reader and the ivar" do
+        describe "accessors" do
+            before do
+                @context = Attr
             end
 
-            it "recognizes the link between attr_writer and the ivar" do
+            it "recognizes the link between attr_reader and the ivar" do
+                @analyzer.analyze_method(
+                    @context.instance_method(:reader))
+                info = @analyzer.class_info(@context)
+                assert_same info.instance_variable_get(:@reader),
+                    info.method_info("reader").return_type
             end
 
             it "recognizes the link between attr_accessor and the ivar" do
+                @analyzer.analyze_method(
+                    @context.instance_method(:writer=))
+                info = @analyzer.class_info(@context)
+                assert_same info.instance_variable_get(:@writer),
+                    info.method_info("writer=").return_type
+                assert_same info.instance_variable_get(:@writer),
+                    info.method_info("writer=").argument_types[0]
+            end
+
+            it "recognizes the link between attr_accessor and the ivar" do
+                @analyzer.analyze_method(
+                    @context.instance_method(:accessor))
+                info = @analyzer.class_info(@context)
+                assert_same info.instance_variable_get(:@accessor),
+                    info.method_info("accessor").return_type
+                assert_same info.instance_variable_get(:@accessor),
+                    info.method_info("accessor=").return_type
+                assert_same info.instance_variable_get(:@accessor),
+                    info.method_info("accessor=").argument_types[0]
             end
         end
 
@@ -355,24 +382,6 @@ module Typo
         attr_writer :writer
         attr_reader :reader
         attr_accessor :accessor
-
-        def writer_access
-            self.writer = 10
-        end
-
-        def reader_access
-            a = reader
-            a.some_call
-        end
-
-        def accessor_read
-            a = accessor
-            a.some_call
-        end
-
-        def accessor_write
-            self.accessor = 10
-        end
     end
 
     class CallExpressions

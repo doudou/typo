@@ -23,11 +23,13 @@ module Typo
             source_code = method.source
             class_state = (@classes[method.owner] ||= ClassAnalysis.new(method.owner))
             ast = Parser::CurrentRuby.parse(source_code)
-            if ast.type != :def
-                raise ArgumentError, "returned AST is not a method definition"
+            if ast.type == :send
+                return analyze_class_metacall(ast, class_state, method)
+            elsif ast.type != :def
+                raise ArgumentError, "returned AST is not a method definition (type=#{ast.type}, ast=#{ast})"
             end
 
-            state = State.new(class_state, method)
+            state = State.new(class_state, method.name)
             state.result.return_type = catch :return do
                 ast.children[2..-1].each do |element|
                     analyze_expression(element, state)
@@ -37,6 +39,33 @@ module Typo
             state.finalize
             class_state.register_instance_method(state.result)
             state.result
+        end
+
+        IVAR_ACCESS_METACALLS = Hash[
+            attr_writer: [false, true].freeze,
+            attr_reader: [true, false].freeze,
+            attr_accessor: [true, true].freeze].freeze
+
+        def analyze_class_metacall(ast, class_state, method)
+            if ast.children[0] == nil && info = IVAR_ACCESS_METACALLS[ast.children[1]]
+                name = ast.children[2].children[0]
+                ivar_name = :"@#{name}"
+                if info[1]
+                    m = MethodAnalysis.new(class_state, "#{name}=")
+                    m.argument_types[0] = m.instance_variable_get_or_create(ivar_name)
+                    m.return_type =
+                        m.instance_variable_get_or_create(ivar_name)
+                    class_state.register_instance_method(m)
+                end
+                if info[0]
+                    m = MethodAnalysis.new(class_state, name)
+                    m.return_type =
+                        m.instance_variable_get_or_create(ivar_name)
+                    class_state.register_instance_method(m)
+                end
+            else
+                puts "unrecognized metacall #{ast}"
+            end
         end
 
         def analyze_expression(expression, state)

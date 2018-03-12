@@ -1,7 +1,7 @@
 module Typo
     class MethodAnalysis
-        # The method object
-        attr_reader :method
+        # The method name
+        attr_reader :name
 
         # The return type
         attr_accessor :return_type
@@ -14,16 +14,12 @@ module Typo
         # The local variable types
         attr_reader :local_variables
 
-        def initialize(klass, method)
+        def initialize(klass, name)
             @klass  = klass
-            @method = method
+            @name   = name.to_s
             @return_type = Type.Any
             @argument_types = Hash.new
             @local_variables = Hash.new
-        end
-
-        def name
-            @method.name
         end
 
         def empty?
@@ -52,6 +48,10 @@ module Typo
 
         def local_variable_get(name, version)
             @local_variables[name][version].type
+        end
+
+        def return_type_update(type)
+            @return_type.update(type)
         end
     end
 end
