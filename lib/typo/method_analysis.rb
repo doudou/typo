@@ -14,15 +14,32 @@ module Typo
         # The local variable types
         attr_reader :local_variables
 
-        def initialize(method)
+        def initialize(klass, method)
+            @klass  = klass
             @method = method
-            @return_type = AnyType.new
+            @return_type = Type.Any
             @argument_types = Hash.new
             @local_variables = Hash.new
         end
 
+        def name
+            @method.name
+        end
+
         def empty?
             @argument_types.empty? && @local_variables.empty?
+        end
+
+        def instance_variable_get_or_create(name)
+            @klass.instance_variable_get_or_create(name)
+        end
+
+        def instance_variable_get(name)
+            @klass.instance_variable_get(name)
+        end
+
+        def instance_variable_update(name, type)
+            @klass.instance_variable_update(name, type)
         end
 
         def local_variable_set(node, name, type)

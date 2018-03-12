@@ -6,9 +6,9 @@ module Typo
 
         LocalVariable = Struct.new :node, :type
 
-        def initialize(method)
-            @result = MethodAnalysis.new(method)
-            @last_type = AnyType.new
+        def initialize(klass, method)
+            @result = MethodAnalysis.new(klass, method)
+            @last_type = Type.Any
             @local_variables = Hash.new
         end
 
@@ -22,6 +22,14 @@ module Typo
 
         def local_variable_get(name)
             @local_variables.fetch(name).type
+        end
+
+        def instance_variable_get(name)
+            result.instance_variable_get_or_create(name)
+        end
+
+        def instance_variable_update(name, type)
+            result.instance_variable_update(name, type)
         end
 
         def local_variable_update(name, type)
