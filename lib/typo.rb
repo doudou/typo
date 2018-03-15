@@ -7,6 +7,7 @@ require "typo/version"
 require "typo/exceptions"
 require 'typo/constraint'
 require 'typo/type'
+require 'typo/name_scope'
 require 'typo/variable'
 require 'typo/class_analysis'
 require 'typo/method_analysis'

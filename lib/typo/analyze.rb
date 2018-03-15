@@ -1,5 +1,18 @@
 module Typo
     class Analyze
+        class ParsingError < RuntimeError
+        end
+
+        class UnknownConstantName < ParsingError
+        end
+
+        def self.file(path)
+            file_ast = Parser::CurrentRuby.parse(File.read(path))
+            analyzer = new
+            analyzer.analyze_toplevel(file_ast)
+            analyzer
+        end
+
         KNOWN_TYPES = Hash[
             nil:        Type.Constant(nil),
             true:       Type.Constant(true),
@@ -10,12 +23,101 @@ module Typo
             back_ref:   Type.KnownClass(String),
             hash:       Type.KnownClass(Hash)]
 
+        attr_reader :root
+
         def initialize
-            @classes = Hash.new
+            @root = NameScope.Root
+            @context = [@root]
         end
 
-        def class_info(klass)
-            @classes.fetch(klass)
+        def current_context
+            @context.last
+        end
+
+        def flatten_const_node(node)
+            if node
+                if node.type == :cbase
+                    ['<root>']
+                else
+                    flatten_const_node(node.children[0]) + [node.children[1]]
+                end
+            else
+                []
+            end
+        end
+
+        def find_constant(root, *parts)
+            anchor = @context.reverse_each.find do |c|
+                c.find_constant(root)
+            end
+            parts.inject(anchor) do |c, n|
+                return unless c
+                c.find_constant(n)
+            end
+        end
+
+        def resolve_constant(root, *parts)
+            anchor = @context.reverse_each.find do |c|
+                c.find_constant(root)
+            end
+            if anchor
+                anchor.resolve_constant(root, *parts)
+            else
+                raise UnknownConstantName, "cannot find #{root}::#{parts.join("::")}"
+            end
+        end
+
+        def resolve_definition_constant(*parts)
+            reference_context =
+                if parts.size > 1
+                    resolve_constant(*parts[0..-2])
+                else
+                    current_context
+                end
+
+            if existing = reference_context.find_constant(parts.last)
+                existing
+            else
+                [nil, reference_context, parts.last]
+            end
+        end
+
+        def analyze_class_or_module(node, expected_type, body_index)
+            existing, reference_context, name = resolve_definition_constant(
+                *flatten_const_node(node.children[0]))
+
+            if existing
+                unless existing.type.has_known_class?(expected_type.type)
+                    raise ArgumentError, "expected #{node} in #{current_context.name} to be a #{expected_type.name}, but it is not"
+                end
+                @context.push(existing)
+            else
+                new_context = NameScope.new(
+                    Type.KnownClass(expected_type.type),
+                    [*reference_context.name_parts, name],
+                    root: @root)
+                reference_context.register_scope(name, new_context)
+                @context.push(new_context)
+            end
+
+            if body = node.children[body_index]
+                analyze_toplevel(body)
+            end
+
+        ensure
+            @context.pop
+        end
+
+        def analyze_toplevel(ast)
+            if ast.type == :begin
+                ast.children.each do |node|
+                    analyze_toplevel(node)
+                end
+            elsif ast.type == :module
+                analyze_class_or_module(ast, @root.module_type, 1)
+            elsif ast.type == :class
+                analyze_class_or_module(ast, @root.class_type, 2)
+            end
         end
 
         # Analyzes a method and returns the corresponding type analysis
