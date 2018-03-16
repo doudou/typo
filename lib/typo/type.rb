@@ -16,6 +16,8 @@ module Typo
             new
         end
 
+        attr_reader :known_classes
+
         def initialize
             @constraints = Array.new
             @known_values = Array.new

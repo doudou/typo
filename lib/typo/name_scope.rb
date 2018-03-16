@@ -25,6 +25,8 @@ module Typo
             @name_parts = name_parts
             @name = name_parts.join("::")
             @constants = Hash.new
+            @methods = Hash.new
+            @instance_variables = Hash.new
         end
 
         def to_s
@@ -52,6 +54,10 @@ module Typo
             @constants[name] = scope
         end
 
+        def register_method(name, method)
+            @methods[name] = method
+        end
+
         def constant_names
             @constants.keys
         end
@@ -74,6 +80,26 @@ module Typo
 
         def module?
             @type.has_known_class?(module_type.type)
+        end
+
+        def method_info(name)
+            @methods.fetch(name)
+        end
+
+        def instance_variable_update(name, type)
+            if var = @instance_variables[name]
+                var.type = var.type.update(type)
+            else
+                @instance_variables[name] = Variable.new(name, type)
+            end
+        end
+
+        def instance_variable_get(name)
+            @instance_variables.fetch(name).type
+        end
+
+        def instance_variable_get_or_create(name)
+            (@instance_variables[name] ||= Variable.new(name, Type.Any)).type
         end
     end
 end

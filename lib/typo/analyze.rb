@@ -103,9 +103,19 @@ module Typo
             if body = node.children[body_index]
                 analyze_toplevel(body)
             end
+            @context.last
 
         ensure
             @context.pop
+        end
+
+        def class_info(*path)
+            scope = @root.resolve_constant(*path)
+            if scope.class?
+                scope
+            else
+                raise "expected #{scope.name} to be a class, but it is not"
+            end
         end
 
         def analyze_toplevel(ast)
@@ -117,21 +127,18 @@ module Typo
                 analyze_class_or_module(ast, @root.module_type, 1)
             elsif ast.type == :class
                 analyze_class_or_module(ast, @root.class_type, 2)
+            elsif ast.type == :send
+                analyze_class_metacall(ast)
+            elsif ast.type == :def
+                analyze_method(ast.children[0], ast.children[1])
+            else
+                puts "ignored #{ast} in analyze_toplevel"
             end
         end
 
         # Analyzes a method and returns the corresponding type analysis
-        def analyze_method(method)
-            source_code = method.source
-            class_state = (@classes[method.owner] ||= ClassAnalysis.new(method.owner))
-            ast = Parser::CurrentRuby.parse(source_code)
-            if ast.type == :send
-                return analyze_class_metacall(ast, class_state, method)
-            elsif ast.type != :def
-                raise ArgumentError, "returned AST is not a method definition (type=#{ast.type}, ast=#{ast})"
-            end
-
-            state = State.new(class_state, method.name)
+        def analyze_method(ast)
+            state = State.new(current_context)
             state.result.return_type = catch :return do
                 ast.children[2..-1].each do |element|
                     analyze_expression(element, state)
@@ -139,7 +146,6 @@ module Typo
                 state.last_type
             end
             state.finalize
-            class_state.register_instance_method(state.result)
             state.result
         end
 
@@ -148,22 +154,22 @@ module Typo
             attr_reader: [true, false].freeze,
             attr_accessor: [true, true].freeze].freeze
 
-        def analyze_class_metacall(ast, class_state, method)
+        def analyze_class_metacall(ast)
             if ast.children[0] == nil && info = IVAR_ACCESS_METACALLS[ast.children[1]]
                 name = ast.children[2].children[0]
                 ivar_name = :"@#{name}"
                 if info[1]
-                    m = MethodAnalysis.new(class_state, "#{name}=")
+                    m = MethodAnalysis.new(current_context)
                     m.argument_types[0] = m.instance_variable_get_or_create(ivar_name)
                     m.return_type =
                         m.instance_variable_get_or_create(ivar_name)
-                    class_state.register_instance_method(m)
+                    current_context.register_method(:"#{name}=", m)
                 end
                 if info[0]
-                    m = MethodAnalysis.new(class_state, name)
+                    m = MethodAnalysis.new(current_context)
                     m.return_type =
                         m.instance_variable_get_or_create(ivar_name)
-                    class_state.register_instance_method(m)
+                    current_context.register_method(name, m)
                 end
             else
                 puts "unrecognized metacall #{ast}"

@@ -6,8 +6,8 @@ module Typo
 
         LocalVariable = Struct.new :node, :type
 
-        def initialize(klass, name)
-            @result = MethodAnalysis.new(klass, name)
+        def initialize(klass)
+            @result = MethodAnalysis.new(klass)
             @last_type = Type.Any
             @local_variables = Hash.new
         end
