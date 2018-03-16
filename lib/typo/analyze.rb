@@ -130,23 +130,23 @@ module Typo
             elsif ast.type == :send
                 analyze_class_metacall(ast)
             elsif ast.type == :def
-                analyze_method(ast.children[0], ast.children[1])
+                analyze_method(ast.children[0], ast.children[2..-1])
             else
                 puts "ignored #{ast} in analyze_toplevel"
             end
         end
 
         # Analyzes a method and returns the corresponding type analysis
-        def analyze_method(ast)
+        def analyze_method(name, ast)
             state = State.new(current_context)
             state.result.return_type = catch :return do
-                ast.children[2..-1].each do |element|
+                ast.each do |element|
                     analyze_expression(element, state)
                 end
                 state.last_type
             end
             state.finalize
-            state.result
+            current_context.register_method(name, state.result)
         end
 
         IVAR_ACCESS_METACALLS = Hash[
